@@ -1,0 +1,81 @@
+<Window x:Class="FIFA15.AccessoryManager.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:FIFA15.AccessoryManager"
+        mc:Ignorable="d"
+        Title="MainWindow" Height="450" Width="800">
+    <Grid Margin="10">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="2*" />
+            <ColumnDefinition Width="5" />
+            <ColumnDefinition Width="1*" />
+        </Grid.ColumnDefinitions>
+
+        <DockPanel Grid.Column="0">
+            <StackPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+                <TextBlock Text="1. Select Database Folder" FontWeight="Bold" />
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="TxtDbFolderPath" Margin="0,0,5,0" />
+                    <Button Grid.Column="1" Content="Browse..." Click="BtnBrowseDb_Click" Width="70" Margin="0,0,5,0" />
+                    <Button Grid.Column="2" Content="Load DB" Click="LoadDatabase_Click" Width="80" />
+                </Grid>
+
+                <TextBlock Text="2. Set SceneAssets Folder (for Previews)" FontWeight="Bold" Margin="0,10,0,0" />
+                <Grid Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="TxtSceneAssetsPath" Text="C:\Users\Laptop\Downloads\big-bh test\sceneassets" Margin="0,0,5,0" />
+                    <Button Grid.Column="1" Content="Browse..." Click="BtnBrowseSceneAssets_Click" Width="70" />
+                </Grid>
+
+                <TextBlock Text="Filter by Team:" FontWeight="SemiBold" />
+                <ComboBox x:Name="ComboTeams" SelectionChanged="ComboTeams_SelectionChanged" Margin="0,5,0,10" />
+            </StackPanel>
+
+            <DataGrid x:Name="GridPlayers" AutoGenerateColumns="False" SelectionMode="Single" SelectionChanged="GridPlayers_SelectionChanged">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Player ID" Binding="{Binding PlayerId}" IsReadOnly="True" />
+                    <DataGridTextColumn Header="Name" Binding="{Binding Name}" IsReadOnly="True" Width="*" />
+                    <DataGridTextColumn Header="Team" Binding="{Binding TeamName}" IsReadOnly="True" Width="*" />
+                    <DataGridTextColumn Header="Shoe ID" Binding="{Binding ShoeId}" />
+                    <DataGridTextColumn Header="GK Glove ID" Binding="{Binding GkGloveId}" />
+                    <DataGridTextColumn Header="Gripsock Color" Binding="{Binding AnkleTapeId}" />
+                </DataGrid.Columns>
+            </DataGrid>
+        </DockPanel>
+
+        <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" />
+
+        <DockPanel Grid.Column="2" Margin="10,0,0,0">
+            <StackPanel DockPanel.Dock="Bottom" VerticalAlignment="Bottom" Margin="0,10,0,0">
+                <TextBlock Text="3. Generate LUA Assignments" FontWeight="Bold" Margin="0,0,0,5" />
+                <Button Content="Generate LUA Scripts" Click="BtnGenerateLua_Click" Height="30" />
+            </StackPanel>
+
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <TextBlock Text="Accessory Preview" FontWeight="Bold" FontSize="16" Margin="0,0,0,10" />
+                    
+                    <TextBlock Text="Shoe Preview:" FontWeight="SemiBold" />
+                    <Border BorderBrush="Gray" BorderThickness="1" Height="120" Margin="0,5,0,15">
+                        <Image x:Name="ImgShoePreview" Stretch="Uniform" />
+                    </Border>
+
+                    <TextBlock Text="GK Glove Preview:" FontWeight="SemiBold" />
+                    <Border BorderBrush="Gray" BorderThickness="1" Height="120" Margin="0,5,0,15">
+                        <Image x:Name="ImgGlovePreview" Stretch="Uniform" />
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </DockPanel>
+    </Grid>
+</Window>

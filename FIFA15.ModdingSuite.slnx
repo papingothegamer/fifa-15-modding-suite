@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/purgatory/">
+    <Project Path="purgatory/FIFA15.Core/FIFA15.Core.csproj" />
+    <Project Path="purgatory/FIFA15.Manager/FIFA15.Manager.csproj" />
+    <Project Path="purgatory/FIFA15.TestConsole/FIFA15.TestConsole.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/FIFA15.AccessoryManager/FIFA15.AccessoryManager.csproj" />
+  </Folder>
+</Solution>
