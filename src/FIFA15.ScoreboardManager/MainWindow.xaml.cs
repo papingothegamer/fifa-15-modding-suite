@@ -241,9 +241,8 @@ namespace FIFA15.ScoreboardManager
                 var fifaFile = _bigFile.GetArchivedFile(entry.Index);
                 var reader = fifaFile.GetReader();
 
-                // Read up to 4KB for hex preview
-                int bytesToRead = Math.Min(4096, fifaFile.UncompressedSize);
-                byte[] data = reader.ReadBytes(bytesToRead);
+                // Read full file for hex preview to allow saving
+                byte[] data = reader.ReadBytes(fifaFile.UncompressedSize);
                 fifaFile.ReleaseReader(reader);
 
                 var sb = new StringBuilder();
@@ -270,33 +269,100 @@ namespace FIFA15.ScoreboardManager
                     for (int j = 0; j < lineWidth && i + j < data.Length; j++)
                     {
                         byte b = data[i + j];
-                        sb.Append(b >= 32 && b < 127 ? (char)b : '.');
+                        sb.Append(b >= 32 && b <= 126 ? (char)b : '.');
                     }
 
                     sb.AppendLine();
                 }
 
-                if (data.Length < fifaFile.UncompressedSize)
-                {
-                    sb.AppendLine();
-                    sb.AppendLine($"... showing first {bytesToRead} of {fifaFile.UncompressedSize} bytes");
-                }
-
+                _isUpdatingHex = true;
                 TxtHexView.Text = sb.ToString();
                 TxtPreviewTitle.Text = entry.DisplayName;
+                _isUpdatingHex = false;
+                BtnSaveHex.IsEnabled = false;
+
+                // If this is a scoreboard hex file (e.g. index 0 or 1), show compositor button
+                BtnViewCompositor.Visibility = (entry.Index == 0 || entry.Index == 1) ? Visibility.Visible : Visibility.Collapsed;
 
                 HexPreviewPanel.Visibility = Visibility.Visible;
                 ImagePreviewPanel.Visibility = Visibility.Collapsed;
                 EmptyPreviewPanel.Visibility = Visibility.Collapsed;
+                CompositorPanel.Visibility = Visibility.Collapsed;
             }
             catch (Exception ex)
             {
+                _isUpdatingHex = true;
                 TxtHexView.Text = $"Error reading file: {ex.Message}";
+                _isUpdatingHex = false;
                 HexPreviewPanel.Visibility = Visibility.Visible;
                 ImagePreviewPanel.Visibility = Visibility.Collapsed;
                 EmptyPreviewPanel.Visibility = Visibility.Collapsed;
+                CompositorPanel.Visibility = Visibility.Collapsed;
             }
         }
+
+        private bool _isUpdatingHex;
+
+        private void TxtHexView_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (!_isUpdatingHex)
+            {
+                BtnSaveHex.IsEnabled = true;
+            }
+        }
+
+        private void BtnSaveHex_Click(object sender, RoutedEventArgs e)
+        {
+            var entry = LstFiles.SelectedItem as BigFileEntry;
+            if (entry == null || _bigFile == null) return;
+
+            try
+            {
+                // Parse the hex text
+                var lines = TxtHexView.Text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                var byteList = new List<byte>();
+
+                foreach (var line in lines)
+                {
+                    if (line.Length < 10) continue;
+                    // Format: 00000000  00 01 02 ... (up to 16 bytes)
+                    string hexPart = line.Substring(10, Math.Min(line.Length - 10, 50)).Trim(); // 50 chars covers 16 bytes + spaces
+                    string[] tokens = hexPart.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                    
+                    foreach (var token in tokens)
+                    {
+                        if (token.Length == 2 && byte.TryParse(token, System.Globalization.NumberStyles.HexNumber, null, out byte b))
+                        {
+                            byteList.Add(b);
+                        }
+                    }
+                }
+
+                byte[] newData = byteList.ToArray();
+
+                // Save back to big file
+                string tempFile = Path.GetTempFileName();
+                File.WriteAllBytes(tempFile, newData);
+                _bigFile.ImportReplacingFile(tempFile, entry.Index);
+                File.Delete(tempFile);
+
+                _hasUnsavedChanges = true;
+                BtnSaveHex.IsEnabled = false;
+
+                // Refresh metadata
+                var updatedFile = _bigFile.GetArchivedFile(entry.Index);
+                entry.CompressedSize = updatedFile.CompressedSize;
+                entry.UncompressedSize = updatedFile.UncompressedSize;
+
+                SetStatus($"Saved changes to {entry.DisplayName}  (unsaved archive)");
+                MessageBox.Show("Hex data updated successfully. Don't forget to 'Save .big'.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to parse and save hex:\n\n{ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
 
         private void ShowEmptyPreview()
         {
@@ -526,6 +592,204 @@ namespace FIFA15.ScoreboardManager
                     "Import Error",
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);
+            }
+        }
+
+        // ═══════════════════════════════════════════
+        //  COMPOSITOR
+        // ═══════════════════════════════════════════
+
+        private class CompositorElement
+        {
+            public int TextureIndex { get; set; }
+            public int OffsetX { get; set; }
+            public int OffsetY { get; set; }
+            public System.Windows.Controls.Image ImageControl { get; set; }
+        }
+
+        private List<CompositorElement> _compositorElements = new List<CompositorElement>();
+        private UIElement _draggedElement;
+        private System.Windows.Point _dragStartPoint;
+        private double _originalLeft;
+        private double _originalTop;
+
+        private void BtnViewCompositor_Click(object sender, RoutedEventArgs e)
+        {
+            var entry = LstFiles.SelectedItem as BigFileEntry;
+            if (entry == null || _bigFile == null) return;
+
+            HexPreviewPanel.Visibility = Visibility.Collapsed;
+            CompositorPanel.Visibility = Visibility.Visible;
+            
+            LoadCompositor(entry);
+        }
+
+        private void BtnBackToHex_Click(object sender, RoutedEventArgs e)
+        {
+            CompositorPanel.Visibility = Visibility.Collapsed;
+            HexPreviewPanel.Visibility = Visibility.Visible;
+        }
+
+        private void LoadCompositor(BigFileEntry hexFileEntry)
+        {
+            CompositorCanvas.Children.Clear();
+            _compositorElements.Clear();
+
+            try
+            {
+                var fifaFile = _bigFile.GetArchivedFile(hexFileEntry.Index);
+                var reader = fifaFile.GetReader();
+                byte[] data = reader.ReadBytes(fifaFile.UncompressedSize);
+                fifaFile.ReleaseReader(reader);
+
+                // Define 9002 Scoreboard Template based on Excel mappings
+                var template = new List<(int TextureIdx, int OffsetX, int OffsetY)>
+                {
+                    (21, 0x143C, 0x1440), // Main Texture (Overall Position)
+                    (50, 0x231C, 0x2320), // Home Team Colour
+                    (53, 0x22CC, 0x22D0)  // Away Team Colour
+                };
+
+                foreach (var item in template)
+                {
+                    // Check if texture exists
+                    if (item.TextureIdx < _bigFile.Files.Length && _bigFile.Files[item.TextureIdx] != null && _bigFile.Files[item.TextureIdx].IsDds())
+                    {
+                        var ddsFile = _bigFile.GetArchivedFile(item.TextureIdx);
+                        var dds = new DdsFile();
+                        dds.Load(ddsFile);
+                        var bmp = dds.GetBitmap();
+
+                        if (bmp != null)
+                        {
+                            var img = new System.Windows.Controls.Image
+                            {
+                                Source = ConvertBitmapToImageSource(bmp),
+                                Width = bmp.Width,
+                                Height = bmp.Height,
+                                Cursor = System.Windows.Input.Cursors.SizeAll
+                            };
+
+                            // Read coordinates from hex (Float32 Little Endian)
+                            float x = 0;
+                            float y = 0;
+                            if (item.OffsetX + 3 < data.Length)
+                            {
+                                x = BitConverter.ToSingle(data, item.OffsetX);
+                            }
+                            if (item.OffsetY + 3 < data.Length)
+                            {
+                                y = BitConverter.ToSingle(data, item.OffsetY);
+                            }
+
+                            // Translate game coordinates to Canvas coordinates
+                            // For simplicity, we assume origin (0,0) is center of screen for game, and translate to top-left of 1920x1080 canvas
+                            // Actually, many EA overlays use (0,0) as center.
+                            double canvasX = (1920 / 2.0) + x;
+                            double canvasY = (1080 / 2.0) - y; // Usually Y is inverted in 3D space
+
+                            Canvas.SetLeft(img, canvasX);
+                            Canvas.SetTop(img, canvasY);
+
+                            img.MouseDown += (s, e) =>
+                            {
+                                _draggedElement = img;
+                                _dragStartPoint = e.GetPosition(CompositorCanvas);
+                                _originalLeft = Canvas.GetLeft(img);
+                                _originalTop = Canvas.GetTop(img);
+                                img.CaptureMouse();
+                            };
+
+                            CompositorCanvas.Children.Add(img);
+
+                            _compositorElements.Add(new CompositorElement
+                            {
+                                TextureIndex = item.TextureIdx,
+                                OffsetX = item.OffsetX,
+                                OffsetY = item.OffsetY,
+                                ImageControl = img
+                            });
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to load compositor:\n{ex.Message}", "Error");
+            }
+        }
+
+        private void CompositorCanvas_MouseMove(object sender, System.Windows.Input.MouseEventArgs e)
+        {
+            if (_draggedElement != null)
+            {
+                var currentPosition = e.GetPosition(CompositorCanvas);
+                double offsetX = currentPosition.X - _dragStartPoint.X;
+                double offsetY = currentPosition.Y - _dragStartPoint.Y;
+
+                Canvas.SetLeft(_draggedElement, _originalLeft + offsetX);
+                Canvas.SetTop(_draggedElement, _originalTop + offsetY);
+            }
+        }
+
+        private void CompositorCanvas_MouseUp(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (_draggedElement != null)
+            {
+                _draggedElement.ReleaseMouseCapture();
+                _draggedElement = null;
+            }
+        }
+
+        private void BtnSaveCompositor_Click(object sender, RoutedEventArgs e)
+        {
+            var entry = LstFiles.SelectedItem as BigFileEntry;
+            if (entry == null || _bigFile == null) return;
+
+            try
+            {
+                var fifaFile = _bigFile.GetArchivedFile(entry.Index);
+                var reader = fifaFile.GetReader();
+                byte[] data = reader.ReadBytes(fifaFile.UncompressedSize);
+                fifaFile.ReleaseReader(reader);
+
+                foreach (var el in _compositorElements)
+                {
+                    double canvasX = Canvas.GetLeft(el.ImageControl);
+                    double canvasY = Canvas.GetTop(el.ImageControl);
+
+                    // Translate Canvas coordinates back to game coordinates
+                    float x = (float)(canvasX - (1920 / 2.0));
+                    float y = (float)((1080 / 2.0) - canvasY);
+
+                    byte[] xBytes = BitConverter.GetBytes(x);
+                    byte[] yBytes = BitConverter.GetBytes(y);
+
+                    if (el.OffsetX + 3 < data.Length)
+                        Array.Copy(xBytes, 0, data, el.OffsetX, 4);
+                    
+                    if (el.OffsetY + 3 < data.Length)
+                        Array.Copy(yBytes, 0, data, el.OffsetY, 4);
+                }
+
+                string tempFile = Path.GetTempFileName();
+                File.WriteAllBytes(tempFile, data);
+                _bigFile.ImportReplacingFile(tempFile, entry.Index);
+                File.Delete(tempFile);
+
+                _hasUnsavedChanges = true;
+                
+                // Refresh Hex View if we go back to it
+                ShowHexPreview(entry);
+                CompositorPanel.Visibility = Visibility.Visible;
+                HexPreviewPanel.Visibility = Visibility.Collapsed;
+
+                SetStatus("Saved compositor layout to memory (unsaved archive)");
+                MessageBox.Show("Layout offsets saved to Hex. Don't forget to 'Save .big'.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to save layout:\n{ex.Message}", "Error");
             }
         }
 

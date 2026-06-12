@@ -183,13 +183,53 @@
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
-                                <TextBlock Grid.Row="0" Text="Hex Data (read-only)" Foreground="#666" FontSize="11" Margin="0,0,0,6"/>
+                                
+                                <DockPanel Grid.Row="0" Margin="0,0,0,6">
+                                    <TextBlock Text="Hex Editor" Foreground="#666" FontSize="11" VerticalAlignment="Center"/>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <Button x:Name="BtnViewCompositor" Content="👁 Visual Compositor" Style="{StaticResource DarkButton}" Click="BtnViewCompositor_Click" Margin="0,0,8,0" Visibility="Collapsed"/>
+                                        <Button x:Name="BtnSaveHex" Content="💾 Save Changes" Style="{StaticResource AccentButton}" Click="BtnSaveHex_Click" IsEnabled="False"/>
+                                    </StackPanel>
+                                </DockPanel>
+
                                 <Border Grid.Row="1" Background="#12122a" CornerRadius="6" Padding="10" BorderBrush="#2a2a4a" BorderThickness="1">
                                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
-                                        <TextBlock x:Name="TxtHexView" FontFamily="Consolas" FontSize="12" Foreground="#8be9fd" TextWrapping="NoWrap"/>
+                                        <TextBox x:Name="TxtHexView" FontFamily="Consolas" FontSize="12" Foreground="#8be9fd" 
+                                                 Background="Transparent" BorderThickness="0" TextWrapping="NoWrap"
+                                                 AcceptsReturn="True" TextChanged="TxtHexView_TextChanged"/>
                                     </ScrollViewer>
                                 </Border>
+                            </Grid>
+                        </Border>
+
+                        <!-- Visual Compositor Panel -->
+                        <Border x:Name="CompositorPanel" Visibility="Collapsed" Padding="0">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                
+                                <Border Grid.Row="0" Background="#16213e" Padding="12,8" BorderBrush="#0f3460" BorderThickness="0,0,0,1">
+                                    <DockPanel>
+                                        <TextBlock Text="Visual Compositor (Scoreboard 9002)" Foreground="#aaa" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                            <Button Content="Back to Hex" Style="{StaticResource DarkButton}" Click="BtnBackToHex_Click" Margin="0,0,8,0"/>
+                                            <Button x:Name="BtnSaveCompositor" Content="💾 Save Layout" Style="{StaticResource AccentButton}" Click="BtnSaveCompositor_Click"/>
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Border>
+
+                                <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                                    <!-- A canvas to represent a 1920x1080 screen scaled down or scrollable -->
+                                    <Viewbox Stretch="Uniform" HorizontalAlignment="Left" VerticalAlignment="Top">
+                                        <Border Width="1920" Height="1080" Background="#111" ClipToBounds="True">
+                                            <Canvas x:Name="CompositorCanvas" Width="1920" Height="1080" Background="Transparent" MouseMove="CompositorCanvas_MouseMove" MouseUp="CompositorCanvas_MouseUp" />
+                                        </Border>
+                                    </Viewbox>
+                                </ScrollViewer>
                             </Grid>
                         </Border>
 
