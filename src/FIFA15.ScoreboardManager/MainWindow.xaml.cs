@@ -173,6 +173,12 @@ namespace FIFA15.ScoreboardManager
         //  SAVE .BIG ARCHIVE
         // ═══════════════════════════════════════════
 
+        public void MarkUnsavedChanges()
+        {
+            _hasUnsavedChanges = true;
+            SetStatus("Coordinates updated (unsaved).");
+        }
+
         private void BtnSave_Click(object sender, RoutedEventArgs e)
         {
             if (_bigFile == null || !_hasUnsavedChanges) return;
@@ -224,8 +230,9 @@ namespace FIFA15.ScoreboardManager
 
         private void PreviewFile(BigFileEntry entry)
         {
-            BtnImport.IsEnabled = true;
             BtnExport.IsEnabled = true;
+            BtnImport.IsEnabled = true;
+            BtnRemove.IsEnabled = true;
 
             if (entry.IsDds)
             {
@@ -404,9 +411,11 @@ namespace FIFA15.ScoreboardManager
             EmptyPreviewPanel.Visibility = Visibility.Visible;
             ImagePreviewPanel.Visibility = Visibility.Collapsed;
             HexPreviewPanel.Visibility = Visibility.Collapsed;
+            bool isSelected = LstFiles.SelectedItem != null;
+            BtnExport.IsEnabled = isSelected;
+            BtnImport.IsEnabled = isSelected;
+            BtnRemove.IsEnabled = isSelected;
             TxtPreviewTitle.Text = "Select a file to preview";
-            BtnImport.IsEnabled = false;
-            BtnExport.IsEnabled = false;
         }
 
         // ═══════════════════════════════════════════
@@ -645,6 +654,74 @@ namespace FIFA15.ScoreboardManager
                     "Import Error",
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);
+            }
+        }
+
+        private void BtnRemove_Click(object sender, RoutedEventArgs e)
+        {
+            var entry = LstFiles.SelectedItem as BigFileEntry;
+            if (entry == null || _bigFile == null) return;
+
+            var result = MessageBox.Show(
+                "This will replace the image with a 1x1 transparent texture. Do you want to continue?",
+                "Remove Image", MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                try
+                {
+                    string tempPng = Path.Combine(Path.GetTempPath(), "transparent_1x1.png");
+                    using (var bmp = new System.Drawing.Bitmap(1, 1, System.Drawing.Imaging.PixelFormat.Format32bppArgb))
+                    {
+                        bmp.SetPixel(0, 0, System.Drawing.Color.Transparent);
+                        bmp.Save(tempPng, System.Drawing.Imaging.ImageFormat.Png);
+                    }
+
+                    if (entry.IsDds)
+                    {
+                        var fifaFile = _bigFile.GetArchivedFile(entry.Index);
+                        var dds = new DdsFile();
+                        dds.Load(fifaFile);
+
+                        var newBitmap = new System.Drawing.Bitmap(tempPng);
+                        dds.ReplaceBitmap(newBitmap);
+
+                        string tempDds = Path.GetTempFileName();
+                        try
+                        {
+                            dds.Save(tempDds);
+                            _bigFile.ImportReplacingFile(tempDds, entry.Index);
+                        }
+                        finally
+                        {
+                            if (File.Exists(tempDds)) File.Delete(tempDds);
+                        }
+                    }
+                    else
+                    {
+                        _bigFile.ImportReplacingFile(tempPng, entry.Index);
+                    }
+
+                    File.Delete(tempPng);
+
+                    _hasUnsavedChanges = true;
+
+                    var updatedFile = _bigFile.GetArchivedFile(entry.Index);
+                    entry.CompressedSize = updatedFile.CompressedSize;
+                    entry.UncompressedSize = updatedFile.UncompressedSize;
+
+                    LstFiles_SelectionChanged(null, null);
+
+                    var zeroWin = new ZeroCoordinatesWindow(_bigFile, this);
+                    zeroWin.Owner = this;
+                    zeroWin.ShowDialog();
+
+                    SetStatus("Image hidden and coordinates updated (unsaved).");
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Error removing image:\n\n{ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             }
         }
 

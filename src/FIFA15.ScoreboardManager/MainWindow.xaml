@@ -162,8 +162,9 @@
                         <DockPanel>
                             <TextBlock x:Name="TxtPreviewTitle" Text="Select a file to preview" Foreground="#aaa" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
                             <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right">
-                                <Button x:Name="BtnImport" Content="⬆  Import" Style="{StaticResource AccentButton}" Click="BtnImport_Click" IsEnabled="False" Margin="0,0,8,0"/>
-                                <Button x:Name="BtnExport" Content="⬇  Export" Style="{StaticResource DarkButton}" Click="BtnExport_Click" IsEnabled="False"/>
+                                <Button x:Name="BtnRemove" Content="🗑️ Remove/Hide" Style="{StaticResource DarkButton}" Click="BtnRemove_Click" IsEnabled="False" Margin="0,0,8,0" ToolTip="Replace with a transparent image and push coordinates off-screen"/>
+                                <Button x:Name="BtnImport" Content="🔄  Import" Style="{StaticResource AccentButton}" Click="BtnImport_Click" IsEnabled="False" Margin="0,0,8,0"/>
+                                <Button x:Name="BtnExport" Content="💾  Export" Style="{StaticResource DarkButton}" Click="BtnExport_Click" IsEnabled="False"/>
                             </StackPanel>
                         </DockPanel>
                     </Border>
