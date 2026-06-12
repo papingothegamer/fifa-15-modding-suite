@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <PlatformTarget>x86</PlatformTarget>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>FIFA15.ScoreboardManager</AssemblyName>
+    <RootNamespace>FIFA15.ScoreboardManager</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="FifaLibrary14">
+      <HintPath>C:\Program Files (x86)\Fifa Master\DB Master\FifaLibrary14.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+  </ItemGroup>
+
+</Project>
