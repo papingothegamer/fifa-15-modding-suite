@@ -490,6 +490,13 @@ namespace FIFA15.ScoreboardManager
             creatorWindow.ShowDialog();
         }
 
+        private void BtnExplorer_Click(object sender, RoutedEventArgs e)
+        {
+            var explorerWindow = new PackExplorerWindow();
+            explorerWindow.Owner = this;
+            explorerWindow.ShowDialog();
+        }
+
         // ═══════════════════════════════════════════
         //  FILE EXTRACTION
         // ═══════════════════════════════════════════

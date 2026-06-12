@@ -100,6 +100,7 @@
                     <Button x:Name="BtnOpen" Content="📂 Open .BIG" Style="{StaticResource AccentButton}" Click="BtnOpen_Click" Margin="0,0,10,0"/>
                     <Button x:Name="BtnSave" Content="💾 Save .BIG" Style="{StaticResource AccentButton}" Click="BtnSave_Click" IsEnabled="False" Margin="0,0,10,0"/>
                     <Button x:Name="BtnCreator" Content="✨ Scoreboard Creator" Style="{StaticResource AccentButton}" Click="BtnCreator_Click" Background="#e43f5a" Margin="0,0,10,0"/>
+                    <Button x:Name="BtnExplorer" Content="📦 Pack Explorer" Style="{StaticResource AccentButton}" Click="BtnExplorer_Click" Background="#4a47a3" Margin="0,0,10,0"/>
                     <Button x:Name="BtnExtractAll" Content="📦  Extract All" Style="{StaticResource DarkButton}" Click="BtnExtractAll_Click" IsEnabled="False" Margin="8,0,0,0"/>
                 </StackPanel>
 
