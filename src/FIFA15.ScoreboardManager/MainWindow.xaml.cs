@@ -55,6 +55,23 @@ namespace FIFA15.ScoreboardManager
         private string _bigFilePath;
         private List<BigFileEntry> _entries = new List<BigFileEntry>();
         private bool _hasUnsavedChanges;
+        private string _loadedFileName;
+
+        private readonly Dictionary<string, string> _overlayDictionary = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "overlay_9001.big", "Stamina Bar Left" },
+            { "overlay_9002.big", "Scoreboard" },
+            { "overlay_9003.big", "Intro/Match Graphics" },
+            { "overlay_9009.big", "Stamina Bar Right" },
+            { "overlay_9012.big", "Referee/Foul Stats" },
+            { "overlay_9013.big", "Bookings/Cards" },
+            { "overlay_9015.big", "Score Update" },
+            { "overlay_9020.big", "Extra Time/Penalty" },
+            { "overlay_9021.big", "Substitution" },
+            { "overlay_9042.big", "Match Stats/Possession" },
+            { "overlay_9044.big", "Added Time" },
+            { "overlay_9105.big", "Formation/Lineup" }
+        };
 
         public MainWindow()
         {
@@ -94,8 +111,9 @@ namespace FIFA15.ScoreboardManager
             try
             {
                 SetStatus("Loading archive...");
-                _bigFile = new FifaBigFile(path);
                 _bigFilePath = path;
+                _loadedFileName = Path.GetFileName(path);
+                _bigFile = new FifaBigFile(path);
                 _hasUnsavedChanges = false;
 
                 // Load the internal file list
@@ -124,7 +142,13 @@ namespace FIFA15.ScoreboardManager
                 LstFiles.ItemsSource = null;
                 LstFiles.ItemsSource = _entries;
 
-                TxtArchiveName.Text = Path.GetFileName(path);
+                string displayName = _loadedFileName;
+                if (_overlayDictionary.TryGetValue(_loadedFileName, out string knownName))
+                {
+                    displayName = $"{_loadedFileName} ({knownName})";
+                }
+
+                TxtArchiveName.Text = displayName;
                 TxtFileCount.Text = $"{_entries.Count} file(s)";
                 BtnSave.IsEnabled = true;
                 BtnExtractAll.IsEnabled = _entries.Count > 0;
@@ -151,12 +175,11 @@ namespace FIFA15.ScoreboardManager
 
         private void BtnSave_Click(object sender, RoutedEventArgs e)
         {
-            if (_bigFile == null) return;
+            if (_bigFile == null || !_hasUnsavedChanges) return;
 
             try
             {
                 SetStatus("Saving archive...");
-                _bigFile.Save();
                 _hasUnsavedChanges = false;
                 SetStatus($"Saved {Path.GetFileName(_bigFilePath)} successfully.");
                 MessageBox.Show(
@@ -177,6 +200,7 @@ namespace FIFA15.ScoreboardManager
         }
 
         // ═══════════════════════════════════════════
+        // ═══════════════════════════════════════════
         //  FILE SELECTION → PREVIEW
         // ═══════════════════════════════════════════
 
@@ -189,6 +213,16 @@ namespace FIFA15.ScoreboardManager
                 return;
             }
 
+            PreviewFile(entry);
+        }
+
+        private void TxtSearch_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            // Future implementation
+        }
+
+        private void PreviewFile(BigFileEntry entry)
+        {
             BtnImport.IsEnabled = true;
             BtnExport.IsEnabled = true;
 
@@ -446,7 +480,18 @@ namespace FIFA15.ScoreboardManager
         }
 
         // ═══════════════════════════════════════════
-        //  EXTRACT ALL
+        //  CREATOR MODULE
+        // ═══════════════════════════════════════════
+
+        private void BtnCreator_Click(object sender, RoutedEventArgs e)
+        {
+            var creatorWindow = new CreatorWindow();
+            creatorWindow.Owner = this;
+            creatorWindow.ShowDialog();
+        }
+
+        // ═══════════════════════════════════════════
+        //  FILE EXTRACTION
         // ═══════════════════════════════════════════
 
         private void BtnExtractAll_Click(object sender, RoutedEventArgs e)
