@@ -180,6 +180,7 @@ namespace FIFA15.ScoreboardManager
             try
             {
                 SetStatus("Saving archive...");
+                _bigFile.Save();
                 _hasUnsavedChanges = false;
                 SetStatus($"Saved {Path.GetFileName(_bigFilePath)} successfully.");
                 MessageBox.Show(

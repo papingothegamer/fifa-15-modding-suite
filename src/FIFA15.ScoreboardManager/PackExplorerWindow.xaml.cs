@@ -33,16 +33,25 @@ namespace FIFA15.ScoreboardManager
         private readonly Dictionary<string, string> _overlayTypes = new Dictionary<string, string>
         {
             { "none", "Do Not Port (Skip)" },
-            { "9001", "Stamina Bar (9001)" },
+            { "9001", "Stamina Bar Left (9001)" },
             { "9002", "Scoreboard (9002)" },
-            { "9003", "Match Intro (9003)" },
-            { "9013", "Team Intro/Lineup (9013)" },
-            { "9021", "Substitution (9021)" },
-            { "9042", "Starting 11 List (9042)" },
-            { "9044", "Player Stats Live (9044)" },
-            { "9045", "Match Facts (9045)" },
-            { "9072", "Goalscorer Live (9072)" },
-            { "9073", "Sub Popup Mini (9073)" }
+            { "9003", "Penalties (9003)" },
+            { "9009", "Stamina Bar Right (9009)" },
+            { "9012", "Goalscorer Live (9012)" },
+            { "9013", "Cards/Injury Big (9013)" },
+            { "9015", "Scoreboard Kick-Off (9015)" },
+            { "9018", "Line-up / Formation (9018)" },
+            { "9020", "Referee (9020)" },
+            { "9021", "Substitutions Big (9021)" },
+            { "9042", "Opening / Match Intro (9042)" },
+            { "9044", "Commentary (9044)" },
+            { "9045", "Table View (9045)" },
+            { "9072", "Cards/Injury Small (9072)" },
+            { "9073", "Substitutions Small (9073)" },
+            { "9074", "Statistics (9074)" },
+            { "9098", "Goal Decision (9098)" },
+            { "9102", "Line up bottom screen (9102)" },
+            { "9105", "Team Stats Live / Bug (9105)" }
         };
 
         public PackExplorerWindow()
@@ -95,12 +104,42 @@ namespace FIFA15.ScoreboardManager
 
             TxtStatus.Text = $"Processing {files.Length} files. Please wait...";
 
-            // Use Task.Run to avoid blocking UI, then dispatch back to add items
+            // Process files
+            var assignedTargets = new HashSet<string>();
+
+            // Let's run all tasks in parallel to speed it up significantly!
+            var tasks = new List<System.Threading.Tasks.Task<PackItem>>();
             foreach (var file in files)
             {
-                var packItem = await System.Threading.Tasks.Task.Run(() => ProcessBigFile(file));
+                tasks.Add(System.Threading.Tasks.Task.Run(() => ProcessBigFile(file)));
+            }
+
+            var results = await System.Threading.Tasks.Task.WhenAll(tasks);
+
+            foreach (var packItem in results)
+            {
                 if (packItem != null)
                 {
+                    // Auto-mapping logic
+                    string autoMapId = "none";
+                    foreach (var key in _overlayTypes.Keys)
+                    {
+                        if (key == "none") continue;
+                        
+                        // Check if file ends with the ID part (e.g. "002.big" for "9002")
+                        if (packItem.FileName.EndsWith(key.Substring(1) + ".big", StringComparison.OrdinalIgnoreCase))
+                        {
+                            // Avoid duplicates: only assign if this target hasn't been used yet
+                            if (!assignedTargets.Contains(key))
+                            {
+                                autoMapId = key;
+                                assignedTargets.Add(key);
+                            }
+                            break;
+                        }
+                    }
+
+                    packItem.TargetId = autoMapId;
                     _galleryItems.Add(packItem);
                 }
             }
@@ -113,6 +152,7 @@ namespace FIFA15.ScoreboardManager
             try
             {
                 var bigFile = new FifaBigFile(filePath);
+                bigFile.LoadArchivedFiles();
                 Bitmap largestBitmap = null;
                 long largestSize = 0;
 
@@ -142,24 +182,11 @@ namespace FIFA15.ScoreboardManager
 
                 string fileName = Path.GetFileName(filePath);
 
-                // Auto-map logic based on filename endsWith
-                string autoMapId = "none";
-                if (fileName.EndsWith("001.big")) autoMapId = "9001";
-                else if (fileName.EndsWith("002.big")) autoMapId = "9002";
-                else if (fileName.EndsWith("003.big")) autoMapId = "9003";
-                else if (fileName.EndsWith("013.big")) autoMapId = "9013";
-                else if (fileName.EndsWith("021.big")) autoMapId = "9021";
-                else if (fileName.EndsWith("042.big")) autoMapId = "9042";
-                else if (fileName.EndsWith("044.big")) autoMapId = "9044";
-                else if (fileName.EndsWith("045.big")) autoMapId = "9045";
-                else if (fileName.EndsWith("072.big")) autoMapId = "9072";
-                else if (fileName.EndsWith("073.big")) autoMapId = "9073";
-
                 var packItem = new PackItem
                 {
                     OriginalFilePath = filePath,
                     FileName = fileName,
-                    TargetId = autoMapId,
+                    TargetId = "none",
                     TargetOptions = _overlayTypes,
                     Thumbnail = null 
                 };
@@ -172,8 +199,9 @@ namespace FIFA15.ScoreboardManager
 
                 return packItem;
             }
-            catch
+            catch (Exception ex)
             {
+                File.AppendAllText("debug_explorer.txt", $"Error processing {filePath}: {ex.Message}\n{ex.StackTrace}\n");
                 return null;
             }
         }
@@ -218,6 +246,7 @@ namespace FIFA15.ScoreboardManager
 
                         // 2. Re-pack using FifaLibrary to ensure valid header
                         var portedBig = new FifaBigFile(destPath);
+                        portedBig.LoadArchivedFiles();
                         portedBig.Save();
 
                         successCount++;
