@@ -32,7 +32,7 @@ namespace FIFA15.ScoreboardManager
         // Default FIFA 15 Dictionary for mapping
         private readonly Dictionary<string, string> _overlayTypes = new Dictionary<string, string>
         {
-            { "none", "Do Not Port (Skip)" },
+            { "none", "Do Not Export (Skip)" },
             { "9001", "Stamina Bar Left (9001)" },
             { "9002", "Scoreboard (9002)" },
             { "9003", "Penalties (9003)" },
@@ -51,7 +51,31 @@ namespace FIFA15.ScoreboardManager
             { "9074", "Statistics (9074)" },
             { "9098", "Goal Decision (9098)" },
             { "9102", "Line up bottom screen (9102)" },
-            { "9105", "Team Stats Live / Bug (9105)" }
+            { "9105", "TV Logos (9105)" }
+        };
+
+        // Clean names for exported filenames (no parentheses or special chars)
+        private readonly Dictionary<string, string> _overlayExportNames = new Dictionary<string, string>
+        {
+            { "9001", "Stamina Bar Left" },
+            { "9002", "Scoreboard" },
+            { "9003", "Penalties" },
+            { "9009", "Stamina Bar Right" },
+            { "9012", "Goalscorer Live" },
+            { "9013", "Cards-Injury Big" },
+            { "9015", "Scoreboard Kick-Off" },
+            { "9018", "Line-up Formation" },
+            { "9020", "Referee" },
+            { "9021", "Substitutions Big" },
+            { "9042", "Opening Match Intro" },
+            { "9044", "Commentary" },
+            { "9045", "Table View" },
+            { "9072", "Cards-Injury Small" },
+            { "9073", "Substitutions Small" },
+            { "9074", "Statistics" },
+            { "9098", "Goal Decision" },
+            { "9102", "Line up bottom screen" },
+            { "9105", "TV Logos" }
         };
 
         public PackExplorerWindow()
@@ -78,7 +102,7 @@ namespace FIFA15.ScoreboardManager
         {
             using (var dialog = new FolderBrowserDialog())
             {
-                dialog.Description = "Select the output folder for FIFA 15 ported files";
+                dialog.Description = "Select the output folder for exported textures";
                 if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
                 {
                     _outputPath = dialog.SelectedPath;
@@ -222,7 +246,7 @@ namespace FIFA15.ScoreboardManager
             }
         }
 
-        private void BtnPort_Click(object sender, RoutedEventArgs e)
+        private void BtnExport_Click(object sender, RoutedEventArgs e)
         {
             if (string.IsNullOrEmpty(_outputPath))
             {
@@ -230,36 +254,85 @@ namespace FIFA15.ScoreboardManager
                 return;
             }
 
-            int successCount = 0;
+            int exportCount = 0;
+            var errorLog = new List<string>();
 
             foreach (var item in _galleryItems)
             {
-                if (item.TargetId != "none")
+                if (item.TargetId == "none") continue;
+
+                try
                 {
-                    try
+                    // Open the .big file and find the largest DDS texture
+                    var bigFile = new FifaBigFile(item.OriginalFilePath);
+                    bigFile.LoadArchivedFiles();
+
+                    Bitmap largestBitmap = null;
+                    long largestSize = 0;
+
+                    for (int i = 0; i < bigFile.Files.Length; i++)
                     {
-                        string newFileName = $"overlay_{item.TargetId}.big";
-                        string destPath = Path.Combine(_outputPath, newFileName);
-
-                        // 1. Copy the file
-                        File.Copy(item.OriginalFilePath, destPath, true);
-
-                        // 2. Re-pack using FifaLibrary to ensure valid header
-                        var portedBig = new FifaBigFile(destPath);
-                        portedBig.LoadArchivedFiles();
-                        portedBig.Save();
-
-                        successCount++;
+                        if (bigFile.Files[i] != null && bigFile.Files[i].IsDds())
+                        {
+                            var ddsFile = bigFile.GetArchivedFile(i);
+                            var dds = new DdsFile();
+                            dds.Load(ddsFile);
+                            var bmp = dds.GetBitmap();
+                            if (bmp != null)
+                            {
+                                long size = bmp.Width * bmp.Height;
+                                if (size > largestSize)
+                                {
+                                    largestSize = size;
+                                    largestBitmap = bmp;
+                                }
+                            }
+                        }
                     }
-                    catch (Exception ex)
+
+                    if (largestBitmap == null)
                     {
-                        System.Windows.MessageBox.Show($"Failed to port {item.FileName}:\n{ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        errorLog.Add($"{item.FileName}: No valid texture found.");
+                        continue;
                     }
+
+                    // Build the export filename: overlay_9002 - Scoreboard.png
+                    string exportName;
+                    if (_overlayExportNames.TryGetValue(item.TargetId, out string friendlyName))
+                    {
+                        exportName = $"overlay_{item.TargetId} - {friendlyName}.png";
+                    }
+                    else
+                    {
+                        exportName = $"overlay_{item.TargetId}.png";
+                    }
+
+                    string exportPath = Path.Combine(_outputPath, exportName);
+
+                    // Save as PNG directly — no temp files!
+                    largestBitmap.Save(exportPath, ImageFormat.Png);
+                    exportCount++;
+                }
+                catch (Exception ex)
+                {
+                    errorLog.Add($"{item.FileName}: {ex.Message}");
                 }
             }
 
-            System.Windows.MessageBox.Show($"Successfully ported {successCount} files to FIFA 15!\n\nLocation: {_outputPath}", "Porting Complete", MessageBoxButton.OK, MessageBoxImage.Information);
-            TxtStatus.Text = $"Last port: {successCount} files exported.";
+            // Show results
+            string msg = $"Exported {exportCount} texture(s) as PNG to:\n{_outputPath}";
+            if (errorLog.Count > 0)
+            {
+                msg += $"\n\nErrors ({errorLog.Count}):\n" + string.Join("\n", errorLog.Take(10));
+                if (errorLog.Count > 10) msg += $"\n...and {errorLog.Count - 10} more.";
+                System.Windows.MessageBox.Show(msg, "Export Complete with Errors", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            else
+            {
+                System.Windows.MessageBox.Show(msg, "Export Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+
+            TxtStatus.Text = $"Exported {exportCount} textures.";
         }
     }
 }

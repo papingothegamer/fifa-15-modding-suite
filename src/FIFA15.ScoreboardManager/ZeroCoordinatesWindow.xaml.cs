@@ -72,7 +72,6 @@ namespace FIFA15.ScoreboardManager
                     string tempFile = System.IO.Path.GetTempFileName();
                     System.IO.File.WriteAllBytes(tempFile, data);
                     _bigFile.ImportReplacingFile(tempFile, 0);
-                    System.IO.File.Delete(tempFile);
 
                     _parent.MarkUnsavedChanges();
                     MessageBox.Show("Coordinates successfully pushed off-screen!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);

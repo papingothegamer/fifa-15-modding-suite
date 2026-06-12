@@ -1,7 +1,7 @@
 <Window x:Class="FIFA15.ScoreboardManager.PackExplorerWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Pack Explorer &amp; Auto-Porter" Height="700" Width="1000"
+        Title="Pack Explorer &amp; Texture Exporter" Height="700" Width="1000"
         Background="#1a1a2e" Foreground="#e0e0e0" WindowStartupLocation="CenterOwner">
 
     <Window.Resources>
@@ -56,7 +56,6 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
                 <Button Grid.Column="0" Content="Browse Source Pack Folder" Style="{StaticResource ModernButton}" Click="BtnBrowseSource_Click" Margin="0,0,10,0"/>
@@ -101,7 +100,7 @@
         <Border Grid.Row="2" Background="#16213e" Padding="15" BorderBrush="#0f3460" BorderThickness="0,1,0,0">
             <DockPanel>
                 <TextBlock x:Name="TxtStatus" Text="Ready." VerticalAlignment="Center" Foreground="#888"/>
-                <Button Content="🚀 Port Selected Files to FIFA 15" Style="{StaticResource AccentButton}" DockPanel.Dock="Right" HorizontalAlignment="Right" Click="BtnPort_Click" Padding="20,8"/>
+                <Button Content="📤 Export Main Textures" Style="{StaticResource AccentButton}" DockPanel.Dock="Right" HorizontalAlignment="Right" Click="BtnExport_Click" Padding="20,8"/>
             </DockPanel>
         </Border>
     </Grid>
